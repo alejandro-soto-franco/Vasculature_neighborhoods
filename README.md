@@ -13,3 +13,5 @@ The notebook is organized into three main sections:
 
 3. **Donor-Specific Rings Analysis**  
    Stratify data by donors to analyze endothelial cell neighborhood enrichment and highlight variability across samples.
+   
+Each section includes basic preprocessing, neighborhood or ring construction, and visualization steps to summarize spatial relationships.
