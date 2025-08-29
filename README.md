@@ -15,3 +15,5 @@ The notebook is organized into three main sections:
    Stratify data by donors to analyze endothelial cell neighborhood enrichment and highlight variability across samples.
    
 Each section includes basic preprocessing, neighborhood or ring construction, and visualization steps to summarize spatial relationships.
+
+[20250123_Metadata_Endothelial_Neighborhoods_RC.ipynb](https://github.com/HickeyLab/Vasculature_neighborhoods/blob/main/20250123_Metadata_Endothelial_Neighborhoods_RC.ipynb) contains code for endothelial cell–specific neighborhood analysis, stratified by metadata such as BMI, history of hypertension, and intestinal region. It includes scripts to generate area plots, bar chart comparisons, and perform statistical testing using Kruskal–Wallis ANOVA.
