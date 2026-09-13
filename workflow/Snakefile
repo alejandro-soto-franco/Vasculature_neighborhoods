@@ -5,13 +5,19 @@ fixture). See config/config.yaml and config/smoke.yaml for parameters, and
 the README for the DAG and result layout.
 """
 
+import os
 from pathlib import Path
 
 configfile: "config/config.yaml"
 
 RUN = config["run_name"]
 RESULTS = Path("results") / RUN
-SHARED_DATA = Path("/mnt/nvme/hickeylab/shared") / config["data"]["shared_dir_name"]
+# Where shared raw datasets live, e.g. one this analysis has in common with
+# other pipelines that read the same table. Defaults to a path under the
+# repo's own (gitignored) `data/` directory; a deployment that keeps such
+# datasets on a separate volume points SHARED_DATA_DIR there instead of
+# editing this file.
+SHARED_DATA = Path(os.environ.get("SHARED_DATA_DIR", "data/shared")) / config["data"]["shared_dir_name"]
 KS = config["windows"]["ks"]
 ENDO_K = config["endothelial_neighborhoods"]["k"]
 USE_FIXTURE = config["data"].get("use_fixture", False)

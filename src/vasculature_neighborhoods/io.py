@@ -4,28 +4,42 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
 
-# Other HickeyLab-fork pipelines on this machine (cellhier, Mingl) also load
-# the same ~2.9 GB CODEX table into memory; three such loads at once can
-# exceed the box's RAM. Every real-data rule that loads the full table holds
-# this lock for as long as that dataframe is alive, so only one such load
-# happens system-wide at a time.
-BIGMEM_LOCK_PATH = "/mnt/nvme/hickeylab/shared/.bigmem.lock"
+# Name of the environment variable that opts into cross-process locking
+# around a big-memory section (see `bigmem_lock`). Unset (the default): no
+# locking, no filesystem access of any kind, safe on a bare CI runner. A
+# deployment that runs several pipelines concurrently against the same
+# large table sets this to a path on a filesystem shared between them; the
+# path itself is never hardcoded here, since it is specific to wherever
+# this is deployed.
+BIGMEM_LOCK_ENV_VAR = "BIGMEM_LOCK_PATH"
 
 
 @contextmanager
-def bigmem_lock(lock_path: str | Path = BIGMEM_LOCK_PATH) -> Iterator[None]:
-    """Hold an exclusive, cross-process lock for a big-memory section.
+def bigmem_lock(lock_path: str | Path | None = None) -> Iterator[None]:
+    """Hold an exclusive, cross-process lock for a big-memory section, if configured.
 
-    Blocks until acquired. Uses the same advisory-lock mechanism as the
+    ``lock_path`` (or, if omitted, the ``BIGMEM_LOCK_PATH`` environment
+    variable) names a file to lock; if neither is set, this is a no-op -
+    no directory is created and no file is touched. When a path is given,
+    blocks until acquired, using the same advisory-lock mechanism as the
     shell ``flock`` command, so it serialises against any process (in any
-    language) that locks the same path, not only other Python code.
+    language) that locks the same path, not only other Python code. Use
+    this to avoid several concurrent pipelines loading the same large table
+    into memory at once; opt in explicitly rather than assuming any
+    particular deployment's filesystem layout.
     """
+    if lock_path is None:
+        lock_path = os.environ.get(BIGMEM_LOCK_ENV_VAR)
+    if not lock_path:
+        yield
+        return
     Path(lock_path).parent.mkdir(parents=True, exist_ok=True)
     with open(lock_path, "w") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
