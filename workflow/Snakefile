@@ -1,0 +1,175 @@
+"""Endothelial-cell neighbourhood analysis of the HuBMAP intestine CODEX dataset.
+
+Run with ``pixi run all`` (real data) or ``pixi run smoke`` (synthetic
+fixture). See config/config.yaml and config/smoke.yaml for parameters, and
+the README for the DAG and result layout.
+"""
+
+from pathlib import Path
+
+configfile: "config/config.yaml"
+
+RUN = config["run_name"]
+RESULTS = Path("results") / RUN
+SHARED_DATA = Path("/mnt/nvme/hickeylab/shared") / config["data"]["shared_dir_name"]
+KS = config["windows"]["ks"]
+ENDO_K = config["endothelial_neighborhoods"]["k"]
+USE_FIXTURE = config["data"].get("use_fixture", False)
+
+WINDOWS_DIR = RESULTS / "windows"
+ENDO_DIR = RESULTS / "endothelial_neighborhoods"
+RINGS_DIR = RESULTS / "rings"
+DONOR_RINGS_DIR = RESULTS / "donor_rings"
+META_DIR = RESULTS / "metadata_analysis"
+FIGURES_DIR = RESULTS / "figures"
+
+
+def cells_csv_path():
+    if USE_FIXTURE:
+        return str(RESULTS / "fixture" / config["data"]["cells_filename"])
+    return str(SHARED_DATA / config["data"]["cells_filename"])
+
+
+def donor_metadata_csv_path():
+    if USE_FIXTURE:
+        return str(RESULTS / "fixture" / config["data"]["donor_metadata_filename"])
+    return str(SHARED_DATA / config["data"]["donor_metadata_filename"])
+
+
+rule all:
+    input:
+        ENDO_DIR / "clustermap.png",
+        RINGS_DIR / "clustermap_fold_change.png",
+        DONOR_RINGS_DIR / "normalized_barplot.png",
+        META_DIR / "area_by_bmi.png",
+        FIGURES_DIR / "region_highlight.png",
+
+
+rule make_fixture:
+    output:
+        cells=RESULTS / "fixture" / config["data"]["cells_filename"],
+        donor_metadata=RESULTS / "fixture" / config["data"]["donor_metadata_filename"],
+    script:
+        "scripts/make_fixture.py"
+
+
+if not USE_FIXTURE:
+
+    rule download_cells:
+        output:
+            SHARED_DATA / config["data"]["cells_filename"],
+        params:
+            url=config["data"]["cells_url"],
+            sha256=config["data"]["cells_sha256"],
+            lock=str(SHARED_DATA.parent / f".{config['data']['shared_dir_name']}.lock"),
+        shell:
+            "mkdir -p {SHARED_DATA} && "
+            "flock {params.lock} "
+            "python workflow/scripts/download_data.py {params.url} {output} {params.sha256}"
+
+    rule download_donor_metadata:
+        output:
+            SHARED_DATA / config["data"]["donor_metadata_filename"],
+        params:
+            url=config["data"]["donor_metadata_url"],
+            sha256=config["data"]["donor_metadata_sha256"],
+            lock=str(SHARED_DATA.parent / f".{config['data']['shared_dir_name']}.lock"),
+        shell:
+            "mkdir -p {SHARED_DATA} && "
+            "flock {params.lock} "
+            "python workflow/scripts/download_data.py {params.url} {output} {params.sha256}"
+
+
+rule compute_windows:
+    input:
+        cells=cells_csv_path(),
+    output:
+        windows_k=expand(str(WINDOWS_DIR / "windows_k{k}.parquet"), k=KS),
+    threads: config["compute"]["threads"]
+    resources:
+        omp_num_threads=config["compute"]["omp_num_threads"],
+    params:
+        ks=KS,
+    script:
+        "scripts/compute_windows.py"
+
+
+rule endothelial_neighborhoods:
+    input:
+        cells=cells_csv_path(),
+        windows_k=str(WINDOWS_DIR / f"windows_k{ENDO_K}.parquet"),
+    output:
+        cells_labeled=ENDO_DIR / "cells_labeled.parquet",
+        tissue_averages=ENDO_DIR / "tissue_averages.csv",
+        fold_change=ENDO_DIR / "fold_change.csv",
+        niche_composition=ENDO_DIR / "niche_composition.csv",
+        clustermap_png=ENDO_DIR / "clustermap.png",
+        clustermap_pdf=ENDO_DIR / "clustermap.pdf",
+    script:
+        "scripts/endothelial_neighborhoods.py"
+
+
+rule rings_analysis:
+    input:
+        cells_labeled=ENDO_DIR / "cells_labeled.parquet",
+        tissue_averages=ENDO_DIR / "tissue_averages.csv",
+        windows_k=expand(str(WINDOWS_DIR / "windows_k{k}.parquet"), k=KS),
+    output:
+        fold_change=RINGS_DIR / "fold_change.csv",
+        niche_composition=RINGS_DIR / "niche_composition.csv",
+        clustermap_png=RINGS_DIR / "clustermap_fold_change.png",
+        clustermap_pdf=RINGS_DIR / "clustermap_fold_change.pdf",
+    params:
+        ks=KS,
+    script:
+        "scripts/rings_analysis.py"
+
+
+rule donor_rings_analysis:
+    input:
+        cells_labeled=ENDO_DIR / "cells_labeled.parquet",
+        tissue_averages=ENDO_DIR / "tissue_averages.csv",
+        windows_k=expand(str(WINDOWS_DIR / "windows_k{k}.parquet"), k=KS),
+    output:
+        ratio_table=DONOR_RINGS_DIR / "ratio_table.csv",
+        at_k_large_table=DONOR_RINGS_DIR / "at_k_large_table.csv",
+        subregion_percentages=DONOR_RINGS_DIR / "subregion_percentages.csv",
+        normalized_table=DONOR_RINGS_DIR / "normalized_table.csv",
+        normalized_barplot_png=DONOR_RINGS_DIR / "normalized_barplot.png",
+        normalized_barplot_pdf=DONOR_RINGS_DIR / "normalized_barplot.pdf",
+        ratio_boxplot_png=DONOR_RINGS_DIR / "ratio_boxplot.png",
+        ratio_boxplot_pdf=DONOR_RINGS_DIR / "ratio_boxplot.pdf",
+    params:
+        ks=KS,
+    script:
+        "scripts/donor_rings_analysis.py"
+
+
+rule metadata_analysis:
+    input:
+        cells_labeled=ENDO_DIR / "cells_labeled.parquet",
+        donor_metadata=donor_metadata_csv_path(),
+    output:
+        area_by_bmi=META_DIR / "area_by_bmi.png",
+        donor_area_percentages=META_DIR / "donor_area_percentages.csv",
+        bmi_linear_fits=META_DIR / "bmi_linear_fits.csv",
+        hypertension_ttests=META_DIR / "hypertension_ttests.json",
+        hypertension_swarm=META_DIR / "hypertension_swarm.png",
+        sb_cl_ttests=META_DIR / "sb_cl_ttests.json",
+        sb_cl_swarm=META_DIR / "sb_cl_swarm.png",
+        shapiro_normality=META_DIR / "shapiro_normality.csv",
+        kruskal_wallis=META_DIR / "kruskal_wallis.json",
+        dunn_posthoc=META_DIR / "dunn_posthoc.csv",
+        area_by_region=META_DIR / "area_by_region.png",
+        region_area_percentages=META_DIR / "region_area_percentages.csv",
+    script:
+        "scripts/metadata_analysis.py"
+
+
+rule region_highlight:
+    input:
+        cells_labeled=ENDO_DIR / "cells_labeled.parquet",
+    output:
+        figure=FIGURES_DIR / "region_highlight.png",
+    script:
+        "scripts/region_highlight.py"

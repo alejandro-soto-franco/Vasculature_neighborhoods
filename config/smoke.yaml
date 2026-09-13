@@ -1,0 +1,68 @@
+# Smoke-test configuration: runs the full DAG on a small synthetic fixture
+# shaped like the real CODEX table, in well under 5 minutes on CPU.
+# Merge semantics: the smoke Snakefile invocation loads this file after
+# config.yaml, so any key omitted here falls back to config.yaml's value.
+
+run_name: "smoke"
+
+data:
+  # The fixture rule writes these under results/smoke/fixture/; no download
+  # or checksum needed, so cells_url/sha256 are unused in smoke mode.
+  cells_filename: "fixture_cells.csv"
+  donor_metadata_filename: "fixture_donor_metadata.csv"
+  use_fixture: true
+  fixture:
+    n_donors: 3
+    n_areas_per_donor: 2
+    n_cells_per_region: 120
+    n_cell_types: 6
+    random_state: 0
+
+windows:
+  ks: [3, 5, 10]
+  random_state: 0
+
+endothelial_neighborhoods:
+  cell_type: "type_1"
+  k: 5
+  n_neighborhoods: 3
+  random_state: 0
+  merged_labels:
+    "0": "Neighbourhood A"
+    "1": "Neighbourhood B"
+    "2": "Neighbourhood C"
+  # Snakemake's --configfile merge is a recursive dict merge, so an empty
+  # {} here would NOT clear config.yaml's real-data colour keys (they would
+  # simply persist, unmatched against these fixture label names) - every
+  # fixture neighbourhood name needs its own explicit entry instead.
+  colors:
+    "Neighbourhood A": "tab:blue"
+    "Neighbourhood B": "tab:orange"
+    "Neighbourhood C": "tab:green"
+    "Non-Endothelial": "gainsboro"
+
+rings:
+  k_small: 3
+  k_large: 10
+  neighborhood_to_subregion:
+    "Neighbourhood A": "Region 1"
+    "Neighbourhood B": "Region 2"
+    "Neighbourhood C": "Region 2"
+  plot_order:
+    - "Neighbourhood A"
+    - "Neighbourhood B"
+    - "Neighbourhood C"
+
+metadata_analysis:
+  alpha: 0.05
+  bmi_column: "BMI"
+  hypertension_column: "History of hypertension"
+  tissue_column: "tissue"
+  region_column: "area"
+
+figures:
+  region_highlight: "D0_A0"
+
+compute:
+  threads: 2
+  omp_num_threads: 2

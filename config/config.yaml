@@ -1,0 +1,116 @@
+# Configuration for the vasculature-neighbourhoods workflow.
+# Every path, seed and parameter the original notebooks hardcoded lives here.
+
+run_name: "main"
+
+data:
+  # HuBMAP intestine CODEX single-cell table (Hickey et al. 2023, Nature 619:572-584),
+  # processed single-cell CSV hosted on Dryad. ~2.9 GB, well within the 25 GB budget.
+  cells_url: "https://datadryad.org/downloads/file_stream/2572152"
+  cells_filename: "23_09_CODEX_HuBMAP_alldata_Dryad_merged.csv"
+  # Filled in after the first verified download (config/config.yaml is the single
+  # source of truth the download rule checks against).
+  cells_sha256: "2e466b80980588c19585906a37547c91f227d2ff88b184f6f2f9015af8bab432"
+  donor_metadata_url: "https://datadryad.org/downloads/file_stream/2572151"
+  donor_metadata_filename: "donor_metadata.csv"
+  donor_metadata_sha256: "a9129ba6eb85b3638c20c46e693a7a26684dde44e89926b659fbc40684f0545d"
+  # Anubis (Techaro) anti-scraper proof-of-work guards datadryad.org downloads;
+  # the download rule solves it the same way a browser's JS does (open protocol,
+  # sha256(random_data + nonce) with N leading zero hex digits) rather than
+  # requiring a human to click through.
+  shared_dir_name: "hubmap-intestine-codex"
+
+columns:
+  x: "x"
+  y: "y"
+  region: "unique_region"
+  donor: "donor"
+  cell_type: "Cell Type"
+  subregion: "Tissue Unit"
+
+windows:
+  ks: [5, 10, 30, 50, 100, 300]
+  random_state: 0
+
+endothelial_neighborhoods:
+  cell_type: "Endothelial"
+  k: 50
+  n_neighborhoods: 20
+  random_state: 0
+  # Cluster-index -> named neighbourhood, from the notebook's manual annotation
+  # of the k=50, n=20 MiniBatchKMeans clustering.
+  merged_labels:
+    "0": "Endothelial Rich"
+    "1": "Plasma Cell Enriched"
+    "2": "Stroma + Innate Immune"
+    "3": "Innervated Smooth Muscle"
+    "4": "Immune Enriched"
+    "5": "Immune Enriched"
+    "6": "Follicle"
+    "7": "Cycling TA"
+    "8": "Smooth Muscle + Innate Immune"
+    "9": "Stroma"
+    "10": "Glandular Epithelial"
+    "11": "Plasma Cell Enriched"
+    "12": "Immune Enriched"
+    "13": "Stroma"
+    "14": "Smooth Muscle + Innate Immune"
+    "15": "Paneth + Immune"
+    "16": "Cycling TA"
+    "17": "Smooth Muscle + Innate Immune"
+    "18": "Glandular Epithelial"
+    "19": "Stroma"
+  colors:
+    "Follicle": "mediumspringgreen"
+    "Endothelial Rich": "lightsalmon"
+
+rings:
+  k_small: 5
+  k_large: 300
+  # Neighbourhood-to-subregion assignment used to normalise endothelial
+  # enrichment by each subregion's baseline endothelial percentage (cell 73).
+  neighborhood_to_subregion:
+    "Innervated Smooth Muscle": "Muscularis externa"
+    "Smooth Muscle + Innate Immune": "Muscularis externa"
+    "Stroma + Innate Immune": "Submucosa"
+    "Stroma": "Submucosa"
+    "Endothelial Rich": "Submucosa"
+    "Immune Enriched": "Mucosa"
+    "Follicle": "Mucosa"
+    "Glandular Epithelial": "Mucosa"
+    "Paneth + Immune": "Mucosa"
+    "Cycling TA": "Mucosa"
+    "Plasma Cell Enriched": "Mucosa"
+  # Explicit, label-based plot order for the normalised-percentage bar chart.
+  # Replaces the upstream notebook's undocumented
+  # `combined_300_df_copy.iloc[[1, 3]] = combined_300_df_copy.iloc[[3, 1]].values`,
+  # a positional row swap whose only effect was to group the two "Muscularis
+  # externa" neighbourhoods adjacently on the x-axis (see README, "Differences
+  # from upstream"). This list is that same intended order, stated directly.
+  plot_order:
+    - "Innervated Smooth Muscle"
+    - "Smooth Muscle + Innate Immune"
+    - "Stroma"
+    - "Stroma + Innate Immune"
+    - "Endothelial Rich"
+    - "Follicle"
+    - "Cycling TA"
+    - "Glandular Epithelial"
+    - "Paneth + Immune"
+    - "Plasma Cell Enriched"
+    - "Immune Enriched"
+    - "Follicle"
+
+metadata_analysis:
+  alpha: 0.05
+  bmi_column: "BMI"
+  hypertension_column: "History of hypertension"
+  tissue_column: "tissue"
+  region_column: "area"
+
+figures:
+  region_highlight: "B010_Ileum"
+
+compute:
+  threads: 6
+  omp_num_threads: 6
