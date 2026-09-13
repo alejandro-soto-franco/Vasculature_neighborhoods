@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from vasculature_neighborhoods.neighborhoods import (
+    assign_names_by_content,
     cluster_single_centroid,
     cluster_windows,
     fold_change,
@@ -95,3 +96,55 @@ def test_merged_neighborhood_profile_skips_unpopulated_names():
     )
     assert list(fc.index) == ["Group A"]
     assert list(niche.index) == ["Group A"]
+
+
+def _reference_profiles():
+    # Three well-separated reference profiles over cell types A, B, C.
+    return [
+        {"name": "Alpha", "niche": {"A": 90.0, "B": 5.0, "C": 5.0}},
+        {"name": "Beta", "niche": {"A": 5.0, "B": 90.0, "C": 5.0}},
+        {"name": "Gamma", "niche": {"A": 5.0, "B": 5.0, "C": 90.0}},
+    ]
+
+
+def test_assign_names_by_content_matches_nearest_reference():
+    centers = np.array(
+        [
+            [4.0, 4.0, 92.0],  # closest to Gamma
+            [92.0, 4.0, 4.0],  # closest to Alpha
+            [4.0, 92.0, 4.0],  # closest to Beta
+        ]
+    )
+    names = assign_names_by_content(centers, ["A", "B", "C"], _reference_profiles())
+    assert names == ["Gamma", "Alpha", "Beta"]
+
+
+def test_assign_names_by_content_is_permutation_invariant():
+    # The core reproducibility property: permuting which row of
+    # `cluster_centers` holds which content (exactly what a MiniBatchKMeans
+    # rerun with shuffled cluster labels does) must not change which name a
+    # given piece of content gets.
+    rng = np.random.default_rng(0)
+    base_centers = np.array(
+        [
+            [92.0, 4.0, 4.0],  # Alpha-like
+            [4.0, 92.0, 4.0],  # Beta-like
+            [4.0, 4.0, 92.0],  # Gamma-like
+        ]
+    )
+    reference = _reference_profiles()
+    baseline_names = assign_names_by_content(base_centers, ["A", "B", "C"], reference)
+
+    for _ in range(5):
+        perm = rng.permutation(len(base_centers))
+        permuted_centers = base_centers[perm]
+        permuted_names = assign_names_by_content(permuted_centers, ["A", "B", "C"], reference)
+        # Row i of the permuted input is row perm[i] of the original, so it
+        # must get the name that row got in the un-permuted assignment.
+        expected = [baseline_names[p] for p in perm]
+        assert permuted_names == expected
+
+
+def test_assign_names_by_content_rejects_mismatched_lengths():
+    with pytest.raises(ValueError, match="reference profile"):
+        assign_names_by_content(np.zeros((2, 3)), ["A", "B", "C"], _reference_profiles())

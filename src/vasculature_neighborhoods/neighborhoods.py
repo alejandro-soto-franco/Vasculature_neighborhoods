@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import linear_sum_assignment
 from sklearn.cluster import MiniBatchKMeans
 
 
@@ -61,6 +62,54 @@ def merge_labels(labels: np.ndarray | pd.Series, mapping: dict) -> pd.Series:
     series = pd.Series(labels)
     str_mapping = {str(k): v for k, v in mapping.items()}
     return series.astype(str).map(str_mapping)
+
+
+def assign_names_by_content(
+    cluster_centers: np.ndarray,
+    sum_cols: list[str],
+    reference_profiles: list[dict],
+) -> list[str]:
+    """Name each cluster centroid by matching it to the closest reference profile.
+
+    Upstream names its 20 raw ``MiniBatchKMeans`` clusters by their integer
+    index (cluster 0 is always "Endothelial Rich", etc.). That mapping is
+    not reproducible: ``MiniBatchKMeans`` does not guarantee a cluster gets
+    the same integer label on a rerun in a different environment, so an
+    index-keyed name silently attaches to different biology whenever the
+    label order shifts (see README, "Named-cluster identity"). This assigns
+    names by the *content* of each centroid instead, which is invariant to
+    how the clusters happened to be labelled.
+
+    ``reference_profiles`` is a list of ``{"name": str, "niche": {cell_type:
+    percent, ...}}`` dicts - one per raw cluster in some canonical run (see
+    ``config.yaml``'s ``endothelial_neighborhoods.reference_profiles``),
+    used as-is even when several entries share a name (some names covered
+    more than one raw cluster in that canonical run). ``cluster_centers``
+    is compared to ``reference_profiles`` as percent composition (scale-free,
+    so absolute window-count differences between runs do not matter), via
+    the Hungarian algorithm (``scipy.optimize.linear_sum_assignment``)
+    minimising total Euclidean distance across the full assignment - this
+    is what makes the result depend only on which centroids are present,
+    not on the order ``cluster_centers`` lists them in (see
+    ``tests/test_neighborhoods.py``'s permutation test).
+
+    Requires ``len(cluster_centers) == len(reference_profiles)``. Returns
+    one name per row of ``cluster_centers``, in the same order.
+    """
+    if len(cluster_centers) != len(reference_profiles):
+        raise ValueError(
+            f"got {len(cluster_centers)} cluster centres but "
+            f"{len(reference_profiles)} reference profiles; assign_names_by_content "
+            "requires a reference profile for every current cluster"
+        )
+    current = niche_composition(cluster_centers, sum_cols)[sum_cols].to_numpy()
+    reference = np.array([[p["niche"][c] for c in sum_cols] for p in reference_profiles])
+    cost = np.linalg.norm(current[:, None, :] - reference[None, :, :], axis=2)
+    row_ind, col_ind = linear_sum_assignment(cost)
+    names = [""] * len(cluster_centers)
+    for i, j in zip(row_ind, col_ind):
+        names[i] = reference_profiles[j]["name"]
+    return names
 
 
 def cluster_single_centroid(values: np.ndarray, random_state: int = 0) -> np.ndarray:

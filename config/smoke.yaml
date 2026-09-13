@@ -27,10 +27,46 @@ endothelial_neighborhoods:
   k: 5
   n_neighborhoods: 3
   random_state: 0
-  merged_labels:
-    "0": "Neighbourhood A"
-    "1": "Neighbourhood B"
-    "2": "Neighbourhood C"
+  # One entry per raw cluster, content-matched (Hungarian assignment on
+  # niche-composition distance) to name a rerun's clusters regardless of
+  # MiniBatchKMeans' arbitrary label order; see
+  # neighborhoods.assign_names_by_content. Extracted from a run of this
+  # fixture (random_state 0 throughout), so it is exactly reproducible; it
+  # is a fixture, not real biology.
+  reference_profiles:
+    - index: 0
+      name: "Neighbourhood A"
+      niche:
+        {
+          type_0: 11.982942,
+          type_1: 17.164179,
+          type_2: 17.377399,
+          type_3: 7.452026,
+          type_4: 28.017058,
+          type_5: 18.006397,
+        }
+    - index: 1
+      name: "Neighbourhood B"
+      niche:
+        {
+          type_0: 25.21673,
+          type_1: 20.577947,
+          type_2: 9.095057,
+          type_3: 25.977186,
+          type_4: 3.391635,
+          type_5: 15.741445,
+        }
+    - index: 2
+      name: "Neighbourhood C"
+      niche:
+        {
+          type_0: 9.34277,
+          type_1: 51.344793,
+          type_2: 9.706775,
+          type_3: 5.237614,
+          type_4: 8.816987,
+          type_5: 15.551062,
+        }
   # Snakemake's --configfile merge is a recursive dict merge, so an empty
   # {} here would NOT clear config.yaml's real-data colour keys (they would
   # simply persist, unmatched against these fixture label names) - every

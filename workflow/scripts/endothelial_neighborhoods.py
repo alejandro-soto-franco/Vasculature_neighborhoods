@@ -21,8 +21,8 @@ from vasculature_neighborhoods.io import (  # noqa: E402
     required_cell_columns,
 )
 from vasculature_neighborhoods.neighborhoods import (  # noqa: E402
+    assign_names_by_content,
     cluster_windows,
-    merge_labels,
     merged_neighborhood_profile,
 )
 
@@ -74,7 +74,7 @@ def main() -> None:
         # composition; the center cell's own type is not part of a window's
         # composition, so it is joined back in here to filter windows by it.
         windows_k[cols["cell_type"]] = cells[cols["cell_type"]].reindex(windows_k.index)
-        labels, _centers, clustered_index = cluster_windows(
+        labels, centers, clustered_index = cluster_windows(
             windows_k,
             cell_type_col=cols["cell_type"],
             cell_types=[endo_cfg["cell_type"]],
@@ -82,7 +82,14 @@ def main() -> None:
             n_clusters=endo_cfg["n_neighborhoods"],
             random_state=endo_cfg["random_state"],
         )
-        merged_names = merge_labels(labels, endo_cfg["merged_labels"])
+        # Names clusters by centroid content (Hungarian-matched against
+        # config's reference profiles), not by raw cluster index: see
+        # README, "Named-cluster identity", and
+        # `neighborhoods.assign_names_by_content`.
+        names_by_raw_index = assign_names_by_content(
+            centers, sum_cols, endo_cfg["reference_profiles"]
+        )
+        merged_names = pd.Series(labels).map(dict(enumerate(names_by_raw_index)))
         merged_names.index = clustered_index
 
         neighborhood_col = "Endothelial Cell-Centric Neighborhood"
@@ -98,7 +105,7 @@ def main() -> None:
         # that merged label into one representative centroid.
         endothelial_windows = windows_k.loc[merged_names.index].copy()
         endothelial_windows[neighborhood_col] = merged_names.values
-        merged_names_order = sorted(set(endo_cfg["merged_labels"].values()))
+        merged_names_order = sorted(set(names_by_raw_index))
         fc_by_name, niche_by_name = merged_neighborhood_profile(
             endothelial_windows,
             neighborhood_col,

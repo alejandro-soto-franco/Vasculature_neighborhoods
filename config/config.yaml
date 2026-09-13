@@ -37,29 +37,183 @@ endothelial_neighborhoods:
   k: 50
   n_neighborhoods: 20
   random_state: 0
-  # Cluster-index -> named neighbourhood, from the notebook's manual annotation
-  # of the k=50, n=20 MiniBatchKMeans clustering.
-  merged_labels:
-    "0": "Endothelial Rich"
-    "1": "Plasma Cell Enriched"
-    "2": "Stroma + Innate Immune"
-    "3": "Innervated Smooth Muscle"
-    "4": "Immune Enriched"
-    "5": "Immune Enriched"
-    "6": "Follicle"
-    "7": "Cycling TA"
-    "8": "Smooth Muscle + Innate Immune"
-    "9": "Stroma"
-    "10": "Glandular Epithelial"
-    "11": "Plasma Cell Enriched"
-    "12": "Immune Enriched"
-    "13": "Stroma"
-    "14": "Smooth Muscle + Innate Immune"
-    "15": "Paneth + Immune"
-    "16": "Cycling TA"
-    "17": "Smooth Muscle + Innate Immune"
-    "18": "Glandular Epithelial"
-    "19": "Stroma"
+  # One entry per raw MiniBatchKMeans cluster (index order from a canonical
+  # run of this pipeline, seeded random_state 0): its niche (percent)
+  # composition, and the name it was given. Clusters are matched to these
+  # profiles by content (Hungarian assignment on niche-composition
+  # distance, `neighborhoods.assign_names_by_content`), not by raw index:
+  # MiniBatchKMeans does not guarantee a cluster keeps the same integer
+  # label across environments, so an index lookup silently renames
+  # clusters whenever that ordering shifts (see README, "Clusters are
+  # named by content, not by index"). These are this port's own canonical
+  # profiles: upstream's raw, pre-merge cluster centroids were never
+  # printed or stored anywhere retrievable, only the final 11 merged
+  # names (which these first reproduce exactly, since this profile set was
+  # itself extracted using the original notebook's index annotation on a
+  # single run). See parity.md.
+  reference_profiles:
+  - index: 0
+    name: Endothelial Rich
+    niche: {B: 0.041141, CD4+ T cell: 1.832589, CD57+ Enterocyte: 0.001552, CD66+ Enterocyte: 0.071156,
+      CD7+ Immune: 0.022382, CD8+ T: 1.210298, Cycling TA: 0.092115, DC: 0.642344, Endothelial: 39.14781,
+      Enterocyte: 0.825409, Goblet: 0.125364, ICC: 1.639433, Lymphatic: 2.536387, M1 Macrophage: 0.426418,
+      M2 Macrophage: 8.003234, MUC1+ Enterocyte: 0.066757, NK: 0.106087, Nerve: 2.390711,
+      Neuroendocrine: 0.014878, Neutrophil: 0.612071, Paneth: 0.074908, Plasma: 0.41568,
+      Smooth muscle: 28.329387, Stroma: 11.247041, TA: 0.124846}
+  - index: 1
+    name: Plasma Cell Enriched
+    niche: {B: 0.652228, CD4+ T cell: 7.634585, CD57+ Enterocyte: 0.019065, CD66+ Enterocyte: 0.495694,
+      CD7+ Immune: 0.102182, CD8+ T: 6.387658, Cycling TA: 1.637093, DC: 1.724893, Endothelial: 8.652228,
+      Enterocyte: 9.058617, Goblet: 4.769295, ICC: 1.540932, Lymphatic: 2.163057, M1 Macrophage: 1.397943,
+      M2 Macrophage: 4.839702, MUC1+ Enterocyte: 0.257881, NK: 0.151183, Nerve: 1.808345,
+      Neuroendocrine: 0.332971, Neutrophil: 0.416924, Paneth: 0.056192, Plasma: 35.014968,
+      Smooth muscle: 5.844803, Stroma: 3.863367, TA: 1.178192}
+  - index: 2
+    name: Stroma + Innate Immune
+    niche: {B: 1.033912, CD4+ T cell: 6.9784, CD57+ Enterocyte: 0.113676, CD66+ Enterocyte: 0.603089,
+      CD7+ Immune: 0.137133, CD8+ T: 6.759539, Cycling TA: 11.978984, DC: 1.615666,
+      Endothelial: 7.369739, Enterocyte: 13.725628, Goblet: 13.908295, ICC: 1.610253,
+      Lymphatic: 2.621239, M1 Macrophage: 0.793398, M2 Macrophage: 3.968901, MUC1+ Enterocyte: 1.186541,
+      NK: 0.211325, Nerve: 2.756249, Neuroendocrine: 1.096641, Neutrophil: 0.366608,
+      Paneth: 0.857825, Plasma: 6.780661, Smooth muscle: 4.904739, Stroma: 3.815847,
+      TA: 4.80571}
+  - index: 3
+    name: Innervated Smooth Muscle
+    niche: {B: 0.016656, CD4+ T cell: 0.423226, CD57+ Enterocyte: 0.002082, CD66+ Enterocyte: 0.032502,
+      CD7+ Immune: 0.032734, CD8+ T: 0.476317, Cycling TA: 0.109305, DC: 0.327107, Endothelial: 8.095888,
+      Enterocyte: 0.577295, Goblet: 0.170956, ICC: 1.053843, Lymphatic: 1.852987, M1 Macrophage: 0.169684,
+      M2 Macrophage: 4.185299, MUC1+ Enterocyte: 0.081777, NK: 0.041756, Nerve: 8.150714,
+      Neuroendocrine: 0.004511, Neutrophil: 0.411659, Paneth: 0.017466, Plasma: 0.075531,
+      Smooth muscle: 63.90469, Stroma: 9.634839, TA: 0.151177}
+  - index: 4
+    name: Immune Enriched
+    niche: {B: 0.322882, CD4+ T cell: 5.947413, CD57+ Enterocyte: 0.015513, CD66+ Enterocyte: 0.17393,
+      CD7+ Immune: 0.235457, CD8+ T: 11.945704, Cycling TA: 0.379149, DC: 2.431605,
+      Endothelial: 32.313942, Enterocyte: 8.228226, Goblet: 1.88707, ICC: 1.892723,
+      Lymphatic: 5.902057, M1 Macrophage: 4.388878, M2 Macrophage: 6.037994, MUC1+ Enterocyte: 0.131729,
+      NK: 0.152107, Nerve: 1.730231, Neuroendocrine: 0.215342, Neutrophil: 0.794452,
+      Paneth: 0.321436, Plasma: 3.450339, Smooth muscle: 8.386774, Stroma: 2.322487,
+      TA: 0.392559}
+  - index: 5
+    name: Immune Enriched
+    niche: {B: 0.02929, CD4+ T cell: 1.316578, CD57+ Enterocyte: 0.013589, CD66+ Enterocyte: 0.150274,
+      CD7+ Immune: 0.045913, CD8+ T: 0.968138, Cycling TA: 0.035886, DC: 0.368626, Endothelial: 18.666931,
+      Enterocyte: 1.983244, Goblet: 0.050663, ICC: 2.492645, Lymphatic: 3.04809, M1 Macrophage: 0.270466,
+      M2 Macrophage: 14.671284, MUC1+ Enterocyte: 0.249489, NK: 0.086285, Nerve: 2.384194,
+      Neuroendocrine: 0.00409, Neutrophil: 0.505574, Paneth: 0.06069, Plasma: 0.207533,
+      Smooth muscle: 4.86945, Stroma: 47.456956, TA: 0.06412}
+  - index: 6
+    name: Follicle
+    niche: {B: 0.53518, CD4+ T cell: 5.771136, CD57+ Enterocyte: 0.27941, CD66+ Enterocyte: 1.064055,
+      CD7+ Immune: 0.209952, CD8+ T: 5.242598, Cycling TA: 1.778228, DC: 3.808848, Endothelial: 17.427671,
+      Enterocyte: 17.667004, Goblet: 5.225149, ICC: 1.838118, Lymphatic: 6.208938, M1 Macrophage: 3.136103,
+      M2 Macrophage: 5.129686, MUC1+ Enterocyte: 1.909828, NK: 0.297084, Nerve: 2.593493,
+      Neuroendocrine: 0.572442, Neutrophil: 0.938647, Paneth: 0.853991, Plasma: 3.631994,
+      Smooth muscle: 6.493414, Stroma: 5.33581, TA: 2.051221}
+  - index: 7
+    name: Cycling TA
+    niche: {B: 0.03617, CD4+ T cell: 1.511575, CD57+ Enterocyte: 0.005688, CD66+ Enterocyte: 0.065141,
+      CD7+ Immune: 0.03377, CD8+ T: 1.096645, Cycling TA: 0.155788, DC: 0.617729, Endothelial: 19.404666,
+      Enterocyte: 0.899089, Goblet: 0.202888, ICC: 1.854966, Lymphatic: 2.712997, M1 Macrophage: 0.264919,
+      M2 Macrophage: 7.34459, MUC1+ Enterocyte: 0.168851, NK: 0.083537, Nerve: 5.60782,
+      Neuroendocrine: 0.026394, Neutrophil: 0.715485, Paneth: 0.12024, Plasma: 0.250789,
+      Smooth muscle: 42.663941, Stroma: 14.021773, TA: 0.134548}
+  - index: 8
+    name: Smooth Muscle + Innate Immune
+    niche: {B: 0.3405, CD4+ T cell: 8.337354, CD57+ Enterocyte: 0.080172, CD66+ Enterocyte: 0.259395,
+      CD7+ Immune: 0.115714, CD8+ T: 7.190817, Cycling TA: 1.728952, DC: 1.808542, Endothelial: 12.461225,
+      Enterocyte: 7.379596, Goblet: 2.479986, ICC: 2.563421, Lymphatic: 5.133601, M1 Macrophage: 1.432267,
+      M2 Macrophage: 5.559401, MUC1+ Enterocyte: 0.529744, NK: 0.235274, Nerve: 5.361184,
+      Neuroendocrine: 0.421488, Neutrophil: 0.612247, Paneth: 2.716308, Plasma: 3.170541,
+      Smooth muscle: 23.555556, Stroma: 5.412807, TA: 1.113908}
+  - index: 9
+    name: Stroma
+    niche: {B: 0.58429, CD4+ T cell: 8.331796, CD57+ Enterocyte: 0.014251, CD66+ Enterocyte: 0.291558,
+      CD7+ Immune: 0.098751, CD8+ T: 7.549334, Cycling TA: 0.917931, DC: 2.053818, Endothelial: 19.167575,
+      Enterocyte: 4.953475, Goblet: 2.474642, ICC: 1.940314, Lymphatic: 4.249308, M1 Macrophage: 2.130941,
+      M2 Macrophage: 6.229022, MUC1+ Enterocyte: 0.11602, NK: 0.178556, Nerve: 1.889848,
+      Neuroendocrine: 0.200687, Neutrophil: 0.650516, Paneth: 0.123229, Plasma: 22.60508,
+      Smooth muscle: 9.80669, Stroma: 2.931176, TA: 0.511191}
+  - index: 10
+    name: Glandular Epithelial
+    niche: {B: 0.629108, CD4+ T cell: 2.507765, CD57+ Enterocyte: 0.024558, CD66+ Enterocyte: 28.384254,
+      CD7+ Immune: 0.163236, CD8+ T: 5.713254, Cycling TA: 0.660888, DC: 3.869267, Endothelial: 9.400506,
+      Enterocyte: 13.017696, Goblet: 7.334778, ICC: 0.508487, Lymphatic: 4.130011, M1 Macrophage: 5.767425,
+      M2 Macrophage: 2.730228, MUC1+ Enterocyte: 0.95558, NK: 0.125677, Nerve: 1.035753,
+      Neuroendocrine: 0.198628, Neutrophil: 0.553268, Paneth: 0.0, Plasma: 5.499458,
+      Smooth muscle: 1.443843, Stroma: 3.42073, TA: 1.925605}
+  - index: 11
+    name: Plasma Cell Enriched
+    niche: {B: 0.402693, CD4+ T cell: 6.382191, CD57+ Enterocyte: 0.048807, CD66+ Enterocyte: 0.583078,
+      CD7+ Immune: 0.153305, CD8+ T: 6.648715, Cycling TA: 1.371481, DC: 1.263005, Endothelial: 8.28213,
+      Enterocyte: 26.092258, Goblet: 5.544982, ICC: 1.311812, Lymphatic: 1.985312, M1 Macrophage: 1.69951,
+      M2 Macrophage: 3.760098, MUC1+ Enterocyte: 0.352968, NK: 0.204559, Nerve: 1.229957,
+      Neuroendocrine: 0.656365, Neutrophil: 0.329865, Paneth: 0.261781, Plasma: 21.066248,
+      Smooth muscle: 5.087974, Stroma: 4.022338, TA: 1.258568}
+  - index: 12
+    name: Immune Enriched
+    niche: {B: 0.247571, CD4+ T cell: 5.476256, CD57+ Enterocyte: 0.021213, CD66+ Enterocyte: 0.380183,
+      CD7+ Immune: 0.334611, CD8+ T: 24.766252, Cycling TA: 0.894074, DC: 1.778979,
+      Endothelial: 11.919529, Enterocyte: 18.412344, Goblet: 5.166142, ICC: 1.699603,
+      Lymphatic: 4.345422, M1 Macrophage: 2.284111, M2 Macrophage: 4.212946, MUC1+ Enterocyte: 0.075544,
+      NK: 0.196798, Nerve: 1.480909, Neuroendocrine: 0.553168, Neutrophil: 0.3873, Paneth: 0.830847,
+      Plasma: 5.151225, Smooth muscle: 5.739975, Stroma: 2.3847, TA: 1.260298}
+  - index: 13
+    name: Stroma
+    niche: {B: 2.381468, CD4+ T cell: 21.108102, CD57+ Enterocyte: 0.044793, CD66+ Enterocyte: 0.219132,
+      CD7+ Immune: 0.23904, CD8+ T: 13.644295, Cycling TA: 1.368221, DC: 3.9353, Endothelial: 14.480568,
+      Enterocyte: 4.678475, Goblet: 1.615311, ICC: 2.088268, Lymphatic: 3.073117, M1 Macrophage: 1.726561,
+      M2 Macrophage: 5.377004, MUC1+ Enterocyte: 0.158823, NK: 0.428896, Nerve: 3.073703,
+      Neuroendocrine: 0.225426, Neutrophil: 0.751665, Paneth: 2.083291, Plasma: 4.760155,
+      Smooth muscle: 7.234722, Stroma: 4.677304, TA: 0.626363}
+  - index: 14
+    name: Smooth Muscle + Innate Immune
+    niche: {B: 34.135044, CD4+ T cell: 18.483907, CD57+ Enterocyte: 0.022057, CD66+ Enterocyte: 0.157551,
+      CD7+ Immune: 0.36957, CD8+ T: 9.817691, Cycling TA: 0.865631, DC: 3.500788, Endothelial: 9.182984,
+      Enterocyte: 3.911771, Goblet: 2.172406, ICC: 0.955661, Lymphatic: 1.594868, M1 Macrophage: 0.309251,
+      M2 Macrophage: 3.194238, MUC1+ Enterocyte: 0.081927, NK: 0.73914, Nerve: 0.898492,
+      Neuroendocrine: 0.125141, Neutrophil: 0.256133, Paneth: 0.107585, Plasma: 1.541751,
+      Smooth muscle: 3.584965, Stroma: 3.458474, TA: 0.532973}
+  - index: 15
+    name: Paneth + Immune
+    niche: {B: 0.352694, CD4+ T cell: 3.922125, CD57+ Enterocyte: 0.280305, CD66+ Enterocyte: 1.492524,
+      CD7+ Immune: 0.29332, CD8+ T: 6.766269, Cycling TA: 1.772507, DC: 1.978488, Endothelial: 9.924384,
+      Enterocyte: 39.148112, Goblet: 6.54211, ICC: 0.99161, Lymphatic: 3.045283, M1 Macrophage: 2.181026,
+      M2 Macrophage: 2.963214, MUC1+ Enterocyte: 1.347424, NK: 0.205873, Nerve: 1.418092,
+      Neuroendocrine: 0.766806, Neutrophil: 0.540067, Paneth: 0.770786, Plasma: 3.609982,
+      Smooth muscle: 3.695708, Stroma: 4.195655, TA: 1.795633}
+  - index: 16
+    name: Cycling TA
+    niche: {B: 0.03613, CD4+ T cell: 1.284684, CD57+ Enterocyte: 0.009425, CD66+ Enterocyte: 0.08297,
+      CD7+ Immune: 0.030418, CD8+ T: 0.870403, Cycling TA: 0.091253, DC: 0.496537, Endothelial: 46.141949,
+      Enterocyte: 1.341949, Goblet: 0.101535, ICC: 2.082399, Lymphatic: 1.941164, M1 Macrophage: 0.237058,
+      M2 Macrophage: 12.21935, MUC1+ Enterocyte: 0.091967, NK: 0.078258, Nerve: 1.957015,
+      Neuroendocrine: 0.00457, Neutrophil: 0.857122, Paneth: 0.020707, Plasma: 0.157658,
+      Smooth muscle: 5.706248, Stroma: 24.07483, TA: 0.084398}
+  - index: 17
+    name: Smooth Muscle + Innate Immune
+    niche: {B: 0.108314, CD4+ T cell: 2.373197, CD57+ Enterocyte: 0.013769, CD66+ Enterocyte: 0.162077,
+      CD7+ Immune: 0.036979, CD8+ T: 1.617493, Cycling TA: 0.134146, DC: 0.931943, Endothelial: 24.299764,
+      Enterocyte: 1.967086, Goblet: 0.113821, ICC: 2.77144, Lymphatic: 5.232232, M1 Macrophage: 0.418961,
+      M2 Macrophage: 16.504327, MUC1+ Enterocyte: 0.266457, NK: 0.132573, Nerve: 4.270915,
+      Neuroendocrine: 0.008786, Neutrophil: 1.152636, Paneth: 0.021374, Plasma: 0.458694,
+      Smooth muscle: 13.364673, Stroma: 23.501574, TA: 0.136769}
+  - index: 18
+    name: Glandular Epithelial
+    niche: {B: 0.046154, CD4+ T cell: 1.398718, CD57+ Enterocyte: 0.0, CD66+ Enterocyte: 0.629487,
+      CD7+ Immune: 0.035897, CD8+ T: 1.432051, Cycling TA: 0.019231, DC: 1.530769, Endothelial: 17.730769,
+      Enterocyte: 1.60641, Goblet: 0.028205, ICC: 0.866667, Lymphatic: 3.015385, M1 Macrophage: 0.221795,
+      M2 Macrophage: 7.166667, MUC1+ Enterocyte: 0.037179, NK: 0.135897, Nerve: 1.541026,
+      Neuroendocrine: 0.001282, Neutrophil: 34.551282, Paneth: 0.019231, Plasma: 0.25,
+      Smooth muscle: 17.951282, Stroma: 9.729487, TA: 0.055128}
+  - index: 19
+    name: Stroma
+    niche: {B: 0.026175, CD4+ T cell: 1.622191, CD57+ Enterocyte: 0.003622, CD66+ Enterocyte: 0.088896,
+      CD7+ Immune: 0.036711, CD8+ T: 0.949872, Cycling TA: 0.074409, DC: 0.623755, Endothelial: 15.773809,
+      Enterocyte: 1.123385, Goblet: 0.051362, ICC: 2.304387, Lymphatic: 2.562186, M1 Macrophage: 0.402832,
+      M2 Macrophage: 9.631245, MUC1+ Enterocyte: 0.138283, NK: 0.071775, Nerve: 4.047905,
+      Neuroendocrine: 0.003622, Neutrophil: 0.592806, Paneth: 0.084945, Plasma: 0.244629,
+      Smooth muscle: 27.467611, Stroma: 32.019755, TA: 0.053832}
   colors:
     "Follicle": "mediumspringgreen"
     "Endothelial Rich": "lightsalmon"
@@ -99,7 +253,6 @@ rings:
     - "Paneth + Immune"
     - "Plasma Cell Enriched"
     - "Immune Enriched"
-    - "Follicle"
 
 metadata_analysis:
   alpha: 0.05
@@ -114,3 +267,9 @@ figures:
 compute:
   threads: 6
   omp_num_threads: 6
+  # Path to lock (flock semantics) around any rule that loads the full
+  # cell table, to serialise against other pipelines doing the same
+  # against a shared copy of the same data. null (the default): no
+  # locking. Overridable per invocation via the BIGMEM_LOCK_PATH
+  # environment variable without editing this file; see io.bigmem_lock.
+  bigmem_lock_path: null
