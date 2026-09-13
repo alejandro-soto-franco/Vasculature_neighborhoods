@@ -25,10 +25,11 @@ tissue).
   `donor_metadata.csv` (same dataset) has each donor's age, sex, race, BMI
   and clinical history.
 - Both files download automatically (`pixi run all`) into
-  `/mnt/nvme/hickeylab/shared/hubmap-intestine-codex/`, shared with other
-  HickeyLab-fork workflows on this machine. An exclusive `flock` around the
-  download rule serialises concurrent runs so two workflows never fetch the
-  same file at once. Total download is ~2.9 GB, under the 25 GB limit.
+  `data/shared/hubmap-intestine-codex/` (override the base directory with the
+  `SHARED_DATA_DIR` environment variable, e.g. to share one download across
+  several pipelines that read the same table). An exclusive `flock` around
+  the download rule serialises concurrent runs so two workflows never fetch
+  the same file at once. Total download is ~2.9 GB, under the 25 GB limit.
 - datadryad.org sits behind an Anubis proof-of-work anti-scraper. The
   download rule solves the challenge the same way a browser's JS does (an
   open, documented protocol: find a nonce so that
@@ -113,14 +114,19 @@ for the full comparison table. Summary from the completed `pixi run all`
 against the real data: every data-level quantity matches upstream exactly,
 several to sixteen significant digits (total endothelial cell count, region
 and donor counts, average endothelial nearest-neighbour distance, subregion
-baseline endothelial percentages). Quantities that depend on which of the 20
-raw `MiniBatchKMeans` clusters got a given name (e.g. "Paneth + Immune")
-do not reproduce upstream's numbers: that manual index-to-name annotation is
-tied to one specific run's arbitrary cluster-label ordering, and
-`MiniBatchKMeans` does not guarantee that ordering is stable across
-environments, even at the same seed. `parity.md` shows the evidence
-identifying this as a cluster-identity effect: a well-separated cluster like
-"Endothelial Rich" matches almost exactly, while smaller ones do not.
+baseline endothelial percentages). Quantities keyed by a named neighbourhood
+(donor percentages, the hypertension/tissue t-tests, Kruskal-Wallis) are
+close to upstream's rather than exactly reproducing them, once clusters are
+named by content rather than by raw index (see "Clusters are named by
+content, not by index" below): the one upstream statistic with a full
+stored value to compare against, the hypertension t-test on "Immune
+Enriched", now matches its sign, magnitude and significance closely
+(t=-3.139 vs upstream's -3.191; upstream p=0.0188, ported p=0.0201) - a
+different order of agreement to naming clusters by raw index, which had
+given the opposite conclusion (not significant) on the same test.
+`parity.md` explains the two remaining sources of difference (a windowing
+method change and `MiniBatchKMeans`'s own stochasticity), with the full
+comparison table.
 
 ## Differences from upstream
 
@@ -132,17 +138,18 @@ identifying this as a cluster-identity effect: a well-separated cluster like
   plotted category order changed. `config.yaml`'s `rings.plot_order` now
   states that order directly and it is passed as `order=` to the plotting
   calls; no row data is mutated.
-- **`cellhier` vendored, not depended on.** The upstream notebooks import
+- **`cellhier` is a pinned git dependency.** The upstream notebooks import
   `cellhier` (the Hickey Lab's `Hierarchical-Tissue-Unit-Annotation`) from a
   local checkout via `sys.path.append`. That fork
-  (<https://github.com/alejandro-soto-franco/Hierarchical-Tissue-Unit-Annotation>,
-  commit `b47c15b1409dbe8a732485b62331348ee6e6d709` at time of writing) has no
-  installable package yet (no `pyproject.toml`/`setup.py`), so
-  `src/vasculature_neighborhoods/windows.py` and `plotting.py` vendor cleaned
-  copies of the functions actually used (the k-NN window construction copied
-  into both notebooks, and `plot_john.py`'s `catplot2`), with attribution in
-  each module's docstring. Swap these for a pinned git dependency on
-  `cellhier` once that fork ships a package.
+  (<https://github.com/alejandro-soto-franco/Hierarchical-Tissue-Unit-Annotation>)
+  is pinned in `pyproject.toml` to an exact commit. `compute_windows.py` uses
+  its `cellhier.knn_graph_neighborhood2.Neighborhoods` for k-NN window
+  construction; `region_highlight.py` uses `cellhier.plot_john.catplot2` for
+  the tissue-section scatter plot. Note: `Neighborhoods.make_windows`
+  excludes a cell from its own window, unlike the notebooks' own
+  `get_windows` (whose window for `k` neighbours always included the centre
+  cell at distance 0); see "Clusters are named by content, not by index"
+  below and `parity.md` for what this changes.
 - **Dead code removed.** `get_adata`/`adata_to_dataframe`/`sc_heat` are
   defined in both notebooks but never called, so the port drops them.
   `stacked_bar_plot` and `percent_plot` are likewise defined but unused in
@@ -161,9 +168,6 @@ identifying this as a cluster-identity effect: a well-separated cluster like
   results are not reproducible bit-for-bit across library versions. Not
   ported; the merged neighbourhood labels used everywhere else come from the
   seeded MiniBatchKMeans step, not from this visualisation.
-- **Windowing is vectorised per region rather than per-cell-loop.** Produces
-  the same k-NN composition sums; see `tests/test_windows.py` for the
-  region-isolation and radius-capping behaviour this depends on.
 - **Seaborn API drift fixed: boxplot transparency.** `swarm_box`'s "shade the
   box faces to 30% opacity" step iterated `ax.artists`, where seaborn's
   boxplot placed its patches before its 0.12 rewrite. Under the pinned
@@ -187,28 +191,53 @@ identifying this as a cluster-identity effect: a well-separated cluster like
   table has no raw "area" column (it has `unique_region`, `region` and
   `donor`, none of which is "area"). `io.derive_area_column` splits on the
   first `_` the same way, matching the notebook exactly.
-- **Named-cluster identity is not reproducible across environments.** See
-  `parity.md`: the manual 20-cluster-index-to-name annotation
-  (`endothelial_neighborhoods.merged_labels`) is upstream's own, kept
-  verbatim, but `MiniBatchKMeans` does not guarantee the same cluster gets
-  the same integer label on a rerun in a different environment. Data-level
-  quantities (cell counts, positions, nearest-neighbour distances, subregion
-  baselines) reproduce upstream exactly; quantities keyed by a cluster's
-  *name* (donor percentages, hypertension/tissue t-tests, Kruskal-Wallis)
-  do not, and no attempt was made to re-derive the mapping for this run
-  (that would be a different, unrequested method, not a faithful port).
+- **Clusters are named by content, not by index.** Upstream names its 20
+  raw `MiniBatchKMeans` clusters by integer index (`merged_labels`: cluster
+  0 is always "Endothelial Rich"), but `MiniBatchKMeans` does not guarantee
+  the same cluster gets the same integer label on a rerun in a different
+  environment - a real reproducibility defect, not a cosmetic one: donor
+  percentages, hypertension/tissue t-tests and Kruskal-Wallis are all keyed
+  by that name, so a shuffled label silently renames them to different
+  biology. `neighborhoods.assign_names_by_content` replaces the index
+  lookup: each raw cluster is matched to the closest of
+  `endothelial_neighborhoods.reference_profiles` (one recorded
+  niche-composition profile per raw cluster) by minimum-total-distance
+  (Hungarian) assignment, which depends only on which centroids are
+  present, not on the order `MiniBatchKMeans` happens to list them in -
+  proved by `tests/test_neighborhoods.py`'s permutation test. The reference
+  profiles are this port's own canonical run (upstream's raw, pre-merge
+  centroids were never printed or stored anywhere retrievable, only the
+  final 11 merged names), so this makes the pipeline reproducible against
+  itself; it does not, and cannot, recover upstream's original specific
+  numbers. See `parity.md` for what does and does not match as a result.
 
 ## Compute notes
 
 CPU only, no GPU used. On the real data, `compute_windows` (building every
-k-nearest-neighbour composition window across ~2.6M cells) took ~17 minutes;
-every other rule combined took ~1 minute; both well under the 30-minute
-per-rule limit. Three other HickeyLab-fork workflows on this machine load
-the same ~2.9 GB table concurrently, so every rule that does holds
-`/mnt/nvme/hickeylab/shared/.bigmem.lock` for as long as that table is in
-memory (`io.bigmem_lock`), serialising the big loads across all of them
-rather than risking a simultaneous multi-agent peak. Reading only the
-columns this analysis uses (`io.load_cells(usecols=...)`, skipping ~47
-unused per-marker intensity columns) and reading low-cardinality columns as
-pandas `category` dtype keep each load's memory well under this machine's
-per-agent limit.
+k-nearest-neighbour composition window across ~2.6M cells) takes under 6
+minutes; every other rule combined takes under 1 minute; both well under
+the 30-minute per-rule limit.
+
+`compute_windows` runs one `cellhier.Neighborhoods` call per `k` rather
+than one call for every `k` together, deliberately: `Neighborhoods` sizes
+its per-region neighbour cache to `max(ks)` and keeps it for every `k` in
+one call, so requesting all six `k` values (5, 10, 30, 50, 100, 300) at
+once peaks at `k=300`'s memory for the whole rule. On this machine, with
+several HickeyLab-fork pipelines reading the same table concurrently, a run
+that did this was killed by the `earlyoom` daemon. Splitting into one call
+per `k` trades more total nearest-neighbour search time (each `k` pays its
+own search rather than sharing one) for a peak bounded by whichever single
+`k` is running, not all six together.
+
+Locking around a big-memory rule is opt-in, off by default: set
+`compute.bigmem_lock_path` in the config (or the `BIGMEM_LOCK_PATH`
+environment variable) to a path on a filesystem shared with any other
+pipeline reading the same table, and every rule that loads the full table
+holds that lock (`io.bigmem_lock`) for as long as the table is in memory,
+serialising the big loads rather than risking a simultaneous multi-process
+peak. Neither is set by default, so a bare run (this repo's tests, CI)
+takes no lock and touches no path outside its own working directory.
+Reading only the columns this analysis uses (`io.load_cells(usecols=...)`,
+skipping ~47 unused per-marker intensity columns) and reading
+low-cardinality columns as pandas `category` dtype keep each load's memory
+well under a typical single-process limit regardless.
