@@ -1,15 +1,16 @@
-"""Figure helpers, vendored and cleaned from the upstream notebooks.
+"""Figure helpers.
 
-These functions are near-identical copies of ones both upstream notebooks
-redefine locally (in turn copied from the Hickey Lab ``cellhier`` fork,
-https://github.com/alejandro-soto-franco/Hierarchical-Tissue-Unit-Annotation,
-``plot_john.py``'s ``catplot2`` and the general plotting helpers alongside
-it). ``cellhier`` has no installable package yet, so this module vendors the
-functions actually used here; swap the vendored copy for a ``cellhier``
-import once that fork is packaged (see ``windows.py`` for the same note).
-Attribution: Hickey Lab, Hierarchical-Tissue-Unit-Annotation.
+``area_plot`` and ``swarm_box`` are cleaned ports of the plotting functions
+both upstream notebooks redefine locally in their own cells (not part of the
+``cellhier`` package). The tissue-section scatter plot (the notebooks'
+``catplot2``/``catplot21``) is not ported here: ``cellhier`` now ships it as
+``cellhier.plot_john.catplot2`` (a pinned git dependency, see
+``pyproject.toml``); callers import it directly. ``build_categorical_palette``
+is this project's own helper, used to fill in a colour for every category
+before calling ``catplot2`` with a partial (deliberately only
+part-overridden) palette dict, which it otherwise raises a ``KeyError`` on.
 
-Differences from the vendored originals: no module-level globals
+Differences from the notebooks' originals: no module-level globals
 (``save_path``, ``pal_temp``), figures are returned/saved via an explicit
 path rather than a hardcoded prefix, and dead commented-out code is removed.
 """
@@ -147,53 +148,3 @@ def swarm_box(
     if out_path:
         plt.savefig(out_path, dpi=300, transparent=True, bbox_inches="tight")
     return ax
-
-
-def catplot(
-    df: pd.DataFrame,
-    hue: str,
-    x: str = "x",
-    y: str = "y",
-    invert_y: bool = False,
-    size: float = 3,
-    palette: str | dict = "bright",
-    axis: str = "on",
-    out_path: str | Path | None = None,
-):
-    """Scatter plot of cells in a tissue section, colour-coded by ``hue``.
-
-    Matches ``catplot2``/``catplot21`` in the notebooks, aspect-scaled to the
-    section's true x/y extent. Assumes a single tissue section (pre-filtered
-    by the caller); the notebooks looped this over each section.
-    """
-    plot_df = df.copy()
-    plot_df[hue] = plot_df[hue].astype("category")
-    if invert_y:
-        plot_df[y] = -plot_df[y]
-    xrange = plot_df[x].max() - plot_df[x].min()
-    yrange = plot_df[y].max() - plot_df[y].min()
-    sns.set_style({"axes.facecolor": "white"})
-    # A partial `palette` dict (naming only a few categories to override,
-    # e.g. config.yaml's two manual colour picks) would otherwise make
-    # seaborn KeyError on every hue value it does not name.
-    if isinstance(palette, dict):
-        palette = build_categorical_palette(list(plot_df[hue].cat.categories), palette)
-    grid = sns.lmplot(
-        x=x,
-        y=y,
-        data=plot_df,
-        hue=hue,
-        fit_reg=False,
-        markers=".",
-        height=max(yrange / 400, 2),
-        aspect=max(xrange / yrange, 0.1),
-        palette=palette,
-        scatter=True,
-        scatter_kws={"s": size, "alpha": 1},
-    )
-    if axis == "off":
-        sns.despine(top=True, right=True, left=True, bottom=True)
-        grid = grid.set(xticks=[], yticks=[]).set_xlabels("").set_ylabels("")
-    if out_path:
-        grid.savefig(out_path, dpi=300, transparent=True, bbox_inches="tight")
-    return grid

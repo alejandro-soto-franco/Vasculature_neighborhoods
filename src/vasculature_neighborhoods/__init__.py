@@ -7,7 +7,6 @@ Snakemake workflow in ``workflow/``.
 
 __all__ = [
     "io",
-    "windows",
     "neighborhoods",
     "rings",
     "metadata_stats",

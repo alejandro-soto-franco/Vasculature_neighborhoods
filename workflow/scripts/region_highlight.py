@@ -15,10 +15,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
+from cellhier.plot_john import catplot2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from vasculature_neighborhoods.plotting import catplot  # noqa: E402
+from vasculature_neighborhoods.plotting import build_categorical_palette  # noqa: E402
 
 
 def main() -> None:
@@ -40,19 +41,24 @@ def main() -> None:
             "fix config/config.yaml (or config/smoke.yaml) to name a region that exists"
         )
 
-    palette = colors if colors else "bright"
-    grid = catplot(
+    # `catplot2` uses a dict `palette` straight in `sns.lmplot`, which raises
+    # `KeyError` on any hue value it does not name; config.yaml's `colors`
+    # deliberately only overrides two of the ~12 categories, so fill in the
+    # rest first.
+    palette = build_categorical_palette(sorted(sub[neighborhood_col].unique()), colors)
+    (grid,) = catplot2(
         sub,
         hue=neighborhood_col,
-        x=cols["x"],
-        y=cols["y"],
+        exp=cols["region"],
+        X=cols["x"],
+        Y=cols["y"],
         invert_y=True,
         size=10,
         palette=palette,
-        out_path=out_path,
+        exps=[region],
     )
+    grid.savefig(out_path, dpi=300, transparent=True, bbox_inches="tight")
     plt.close("all")
-    del grid
 
 
 if __name__ == "__main__":

@@ -3,8 +3,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
+from cellhier.plot_john import catplot2
 
-from vasculature_neighborhoods.plotting import area_plot, build_categorical_palette, catplot
+from vasculature_neighborhoods.plotting import area_plot, build_categorical_palette
 
 
 def test_build_categorical_palette_keeps_overrides_and_fills_the_rest():
@@ -30,17 +31,21 @@ def test_area_plot_partial_color_dict_does_not_raise():
     plt.close("all")
 
 
-def test_catplot_partial_palette_dict_covers_every_hue_value():
-    # A dict palette naming only some hue categories must not KeyError on
-    # the rest (this crashed the real endothelial-neighbourhood highlight
+def test_build_categorical_palette_feeds_catplot2_without_keyerror():
+    # cellhier's catplot2 passes a dict `palette` straight into
+    # `sns.lmplot`, which raises `KeyError` on any hue value the dict does
+    # not name (this crashed the real endothelial-neighbourhood highlight
     # figure, whose config only overrides two of ~12 category colours).
+    # `build_categorical_palette` must fill in a full palette first.
     df = pd.DataFrame(
         {
             "x": [0.0, 1.0, 2.0, 3.0],
             "y": [0.0, 1.0, 2.0, 3.0],
+            "exp": ["r1", "r1", "r1", "r1"],
             "group": ["Named", "Unnamed A", "Unnamed B", "Named"],
         }
     )
-    grid = catplot(df, hue="group", palette={"Named": "red"})
+    palette = build_categorical_palette(sorted(df["group"].unique()), {"Named": "red"})
+    (grid,) = catplot2(df, hue="group", exp="exp", X="x", Y="y", palette=palette)
     assert grid is not None
     plt.close("all")
